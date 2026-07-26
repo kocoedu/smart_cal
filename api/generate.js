@@ -42,7 +42,7 @@ export default async function handler(req, res) {
 - 건강점수는 1~5점 숫자만 입력
 - comment는 학생 눈높이의 다정하고 유익한 건강 식생활 조언 작성`;
 
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
 
         const payload = {
             contents: [
