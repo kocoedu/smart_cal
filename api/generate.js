@@ -85,7 +85,16 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: 'AI 분석 결과 데이터를 추출하지 못했습니다.' });
         }
 
-        const parsedData = JSON.parse(rawText.trim());
+        // 마크다운 백틱 및 JSON 외부 후속 텍스트 제거 (첫번째 '{'부터 마지막 '}'까지만 추출)
+        let cleanText = rawText.trim();
+        const firstBrace = cleanText.indexOf('{');
+        const lastBrace = cleanText.lastIndexOf('}');
+
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace >= firstBrace) {
+            cleanText = cleanText.substring(firstBrace, lastBrace + 1);
+        }
+
+        const parsedData = JSON.parse(cleanText);
         return res.status(200).json(parsedData);
 
     } catch (error) {
