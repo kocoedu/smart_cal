@@ -80,13 +80,13 @@
                     <p class="text-[10px] text-emerald-600 font-medium tracking-wider">SCHOOL LUNCH NUTRITION AI</p>
                 </div>
             </div>
-            <!-- API 설정 버튼 -->
+            <!--  설정 버튼 -->
             <button id="btnSettings" class="w-10 h-10 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-600 transition-colors" title="설정">
                 <i class="fa-solid fa-gear text-lg"></i>
             </button>
         </header>
 
-        <!-- API KEY 설정 오버레이 슬라이드 패널 -->
+        <!--  KEY 설정 오버레이 슬라이드 패널 -->
         <div id="settingsPanel" class="absolute inset-0 bg-black/50 z-50 transition-opacity duration-300 opacity-0 pointer-events-none">
             <div class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl p-6 transform translate-y-full transition-transform duration-300 shadow-2xl">
                 <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-5"></div>
@@ -306,7 +306,7 @@
 
     <script>
         // 전역 변수 설정
-        let API_KEY = "AIzaSyCkxbX9z8iGte5pduwcN6Tg3xrSCyn1gNM"; // 제공해주신 기본 API Key 설정
+        let API_KEY = GEMINI_API_KEY; // 제공해주신 기본 API Key 설정
         let currentBase64Image = null; // 분석용 이미지 변수
         let currentMimeType = "image/jpeg"; // 이미지 마임타입 기본값
 
