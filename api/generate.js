@@ -4,11 +4,10 @@ export default async function handler(req, res) {
     }
 
     try {
-        // Vercel 환경 변수에서 GEMINI_API_KEY 읽기
         const apiKey = process.env.GEMINI_API_KEY;
         if (!apiKey) {
             return res.status(500).json({ 
-                error: '서버 환경 변수에 GEMINI_API_KEY가 설정되어 있지 않습니다. Vercel 설정에서 GEMINI_API_KEY를 추가해주세요.' 
+                error: '서버 환경 변수에 GEMINI_API_KEY가 설정되어 있지 않습니다. Vercel 설정에서 GEMINI_API_KEY를 추가해 주세요.' 
             });
         }
 
@@ -43,7 +42,7 @@ export default async function handler(req, res) {
 - 건강점수는 1~5점 숫자만 입력
 - comment는 학생 눈높이의 다정하고 유익한 건강 식생활 조언 작성`;
 
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
         const payload = {
             contents: [
@@ -60,11 +59,11 @@ export default async function handler(req, res) {
                 }
             ],
             generationConfig: {
-                responseMimeType: "application/json"
+                responseMimeType: "application/json",
+                temperature: 0.2
             }
         };
 
-        // Gemini Vision API 호출
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -85,7 +84,7 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: 'AI 분석 결과 데이터를 추출하지 못했습니다.' });
         }
 
-        // 마크다운 백틱 및 JSON 외부 후속 텍스트 제거 (첫번째 '{'부터 마지막 '}'까지만 추출)
+        // 마크다운 문맥 제거 및 순수 JSON 추출
         let cleanText = rawText.trim();
         const firstBrace = cleanText.indexOf('{');
         const lastBrace = cleanText.lastIndexOf('}');
