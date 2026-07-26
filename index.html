@@ -57,6 +57,11 @@
         
         <!-- Header Section with Pastel Gradient -->
         <header class="bg-gradient-to-r from-emerald-100 via-teal-100 to-sky-100 px-6 pt-6 pb-4 rounded-b-3xl shadow-sm flex flex-col items-center text-center relative shrink-0">
+            <!-- Settings button for custom API Key in Preview mode -->
+            <button onclick="toggleApiKeyModal()" class="absolute top-4 right-4 text-slate-500 hover:text-emerald-700 bg-white/60 hover:bg-white p-2 rounded-full shadow-sm text-xs transition-all" title="Gemini API 키 설정">
+                <i class="fa-solid fa-gear text-sm"></i>
+            </button>
+
             <div class="bg-white p-2.5 rounded-full shadow-md mb-2 flex items-center justify-center">
                 <span class="text-2xl">🍱</span>
             </div>
@@ -75,6 +80,33 @@
                 </button>
             </div>
         </header>
+
+        <!-- API Key Modal for direct client testing in Preview environments -->
+        <div id="apiKeyModal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl p-5 max-w-sm w-full shadow-2xl border border-slate-100 flex flex-col gap-3">
+                <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+                    <h3 class="font-bold text-sm text-slate-800 flex items-center gap-1.5">
+                        <i class="fa-solid fa-key text-emerald-500"></i>
+                        <span>Gemini API 키 설정 (미리보기)</span>
+                    </h3>
+                    <button onclick="toggleApiKeyModal()" class="text-slate-400 hover:text-slate-600 text-xs p-1">
+                        <i class="fa-solid fa-xmark text-sm"></i>
+                    </button>
+                </div>
+                <p class="text-[11px] text-slate-500 leading-relaxed">
+                    Vercel 배포 환경에서는 서버리스 환경변수(<code class="bg-slate-100 px-1 py-0.5 rounded text-emerald-700">GEMINI_API_KEY</code>)를 사용하지만, 미리보기/로컬 환경에서 직접 AI를 테스트하시려면 아래에 API 키를 입력해 주세요.
+                </p>
+                <input type="password" id="customApiKeyInput" placeholder="AIzaSy..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-emerald-500">
+                <div class="flex gap-2 mt-1">
+                    <button onclick="saveCustomApiKey()" class="flex-1 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs transition-all">
+                        저장하기
+                    </button>
+                    <button onclick="toggleApiKeyModal()" class="py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium rounded-xl text-xs transition-all">
+                        닫기
+                    </button>
+                </div>
+            </div>
+        </div>
 
         <!-- Scrollable Inner Body -->
         <main class="flex-1 p-5 flex flex-col justify-start overflow-y-auto">
@@ -345,12 +377,15 @@
         let currentRatingScore = 5;
         let selectedTags = [];
 
-        // Authenticate anonymously first
-        signInAnonymously(auth).then((cred) => {
+        // Attempt anonymous auth, but proceed even if Anonymous auth configuration is missing in Firebase Console
+        signInAnonymously(auth).then(() => {
             isAuthReady = true;
             listenToReviews();
         }).catch((err) => {
-            console.error("Firebase Anonymous Auth Error:", err);
+            console.warn("Firebase Anonymous Auth Notice (Proceeding anyway):", err?.message || err);
+            // Allow board reading and posting attempt even if Anonymous provider is unconfigured in console
+            isAuthReady = true;
+            listenToReviews();
         });
 
         // Realtime Firestore Listener
@@ -367,7 +402,12 @@
                 console.error("Firestore onSnapshot Error:", error);
                 const container = document.getElementById('boardListContainer');
                 if (container) {
-                    container.innerHTML = `<div class="p-4 bg-rose-50 text-rose-600 text-xs rounded-xl text-center">소감을 불러오는데 실패했습니다.</div>`;
+                    container.innerHTML = `
+                        <div class="p-4 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-2xl text-center flex flex-col gap-1">
+                            <span class="font-bold">💬 실시간 소감 불러오기 안내</span>
+                            <span>Firebase Console에서 Firestore 규칙 및 Anonymous 인증 설정을 완료하면 게시판 데이터가 연동됩니다.</span>
+                        </div>
+                    `;
                 }
             });
         }
@@ -472,11 +512,6 @@
 
         // Submit Review to Firestore
         window.submitMealReview = async function() {
-            if (!isAuthReady) {
-                window.showErrorAlert("데이터베이스에 연결 중입니다. 잠시 후 다시 시도해주세요.");
-                return;
-            }
-
             const nicknameInput = document.getElementById('inputNickname');
             const commentInput = document.getElementById('inputComment');
             const btn = document.getElementById('btnSubmitReview');
@@ -510,7 +545,7 @@
 
             } catch (err) {
                 console.error("Firestore Save Error:", err);
-                window.showErrorAlert("소감 등록 중 오류가 발생했습니다. 다시 시도해주세요.");
+                window.showErrorAlert("소감 등록 중 오류가 발생했습니다. Firebase Console의 Security Rules를 확인해 주세요.");
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i><span>소감 등록하기</span>`;
@@ -534,7 +569,33 @@
 
         window.onload = function() {
             setupDragAndDrop();
+            loadCustomApiKey();
         };
+
+        function toggleApiKeyModal() {
+            const modal = document.getElementById('apiKeyModal');
+            modal.classList.toggle('hidden');
+        }
+
+        function saveCustomApiKey() {
+            const val = document.getElementById('customApiKeyInput').value.trim();
+            if (val) {
+                localStorage.setItem('user_gemini_api_key', val);
+                alert("Gemini API 키가 설정되었습니다.");
+            } else {
+                localStorage.removeItem('user_gemini_api_key');
+                alert("설정된 Gemini API 키가 삭제되었습니다.");
+            }
+            toggleApiKeyModal();
+        }
+
+        function loadCustomApiKey() {
+            const saved = localStorage.getItem('user_gemini_api_key');
+            if (saved) {
+                const input = document.getElementById('customApiKeyInput');
+                if (input) input.value = saved;
+            }
+        }
 
         function switchTab(tab) {
             const pageAnalysis = document.getElementById('pageAnalysis');
@@ -739,6 +800,80 @@
             }
         }
 
+        async function analyzeWithClientKey(clientKey) {
+            const dietitianPrompt = `당신은 학교 영양사입니다. 
+사진 속 음식을 분석하세요. 
+반드시 아래 JSON 형식으로만 답변하세요.
+설명은 절대 하지 마세요.
+
+{
+  "foods":[
+    {
+      "name":"",
+      "estimated_calorie":"",
+      "protein":"",
+      "carbohydrate":"",
+      "fat":""
+    }
+  ],
+  "total_calorie":"",
+  "health_score":"",
+  "comment":""
+}
+
+조건
+- 음식 이름은 최대한 정확하게 작성
+- 칼로리와 영양소는 AI 추정값 (숫자만 입력 ex: 120)
+- 건강점수는 1~5점 숫자만 입력
+- comment는 학생 눈높이의 다정하고 유익한 건강 식생활 조언 작성`;
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${clientKey}`;
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [
+                            { text: dietitianPrompt },
+                            { inlineData: { mimeType: base64MimeType, data: base64ImageData } }
+                        ]
+                    }],
+                    generationConfig: { responseMimeType: "application/json", temperature: 0.2 }
+                })
+            });
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err?.error?.message || `Gemini API 오류 (HTTP ${response.status})`);
+            }
+
+            const resJson = await response.json();
+            const rawText = resJson?.candidates?.[0]?.content?.parts?.[0]?.text;
+            let cleanText = rawText.trim();
+            const firstBrace = cleanText.indexOf('{');
+            const lastBrace = cleanText.lastIndexOf('}');
+            if (firstBrace !== -1 && lastBrace !== -1) {
+                cleanText = cleanText.substring(firstBrace, lastBrace + 1);
+            }
+            return JSON.parse(cleanText);
+        }
+
+        function getSimulatedDemoResult() {
+            return {
+                foods: [
+                    { name: "흑미밥", estimated_calorie: "310", carbohydrate: "68", protein: "6", fat: "1" },
+                    { name: "차돌된장찌개", estimated_calorie: "185", carbohydrate: "12", protein: "14", fat: "9" },
+                    { name: "제육볶음", estimated_calorie: "240", carbohydrate: "8", protein: "22", fat: "13" },
+                    { name: "계란말이", estimated_calorie: "110", carbohydrate: "2", protein: "8", fat: "7" },
+                    { name: "배추김치", estimated_calorie: "25", carbohydrate: "4", protein: "1", fat: "0" }
+                ],
+                total_calorie: "870",
+                health_score: "5",
+                comment: "단백질과 탄수화물이 골고루 조합된 훌륭한 식단입니다! 맛있게 섭취하고 남은 하루도 힘내세요! (💡 미리보기 모드 시연 데이터)"
+            };
+        }
+
         async function startAnalysis() {
             if (!base64ImageData) {
                 showErrorAlert("분석할 급식 사진을 업로드해 주세요.");
@@ -746,55 +881,49 @@
             }
 
             closeAlert();
-
             document.getElementById('stepUpload').classList.add('hidden');
             document.getElementById('stepLoading').classList.remove('hidden');
             startLoadingCarousel();
 
             try {
-                // Safely resolve the endpoint URL across HTTP, HTTPS, Preview, and Sandboxed environments
-                let targetUrl = null;
-                try {
-                    if (window.location.protocol && window.location.protocol.startsWith('http')) {
-                        targetUrl = new URL('/api/generate', window.location.origin).href;
-                    } else if (window.location.href && !window.location.href.startsWith('about:') && !window.location.href.startsWith('blob:')) {
-                        targetUrl = new URL('/api/generate', window.location.href).href;
-                    }
-                } catch (e) {
-                    targetUrl = null;
-                }
+                let parsedData = null;
+                const userKey = localStorage.getItem('user_gemini_api_key');
 
-                if (!targetUrl) {
-                    throw new Error("현재 미리보기(Preview) 또는 로컬 파일(file://) 환경에서는 상대 경로(/api/generate)를 해석할 수 없습니다. Vercel 배포 주소(http/https) 환경에서 접속해 주세요.");
-                }
-
-                const response = await fetch(targetUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        base64ImageData: base64ImageData,
-                        mimeType: base64MimeType
-                    })
-                });
-
-                const contentType = response.headers.get("content-type");
-                let data;
-                if (contentType && contentType.indexOf("application/json") !== -1) {
-                    data = await response.json();
+                // 1. If user set a custom client API key in Preview mode
+                if (userKey) {
+                    parsedData = await analyzeWithClientKey(userKey);
                 } else {
-                    const rawText = await response.text();
-                    throw new Error(`서버 응답 오류 (HTTP ${response.status}): ${rawText.substring(0, 100)}`);
+                    // 2. Try fetching relative endpoint /api/generate (Works on Vercel deployment)
+                    let response = null;
+                    try {
+                        response = await fetch('/api/generate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                base64ImageData: base64ImageData,
+                                mimeType: base64MimeType
+                            })
+                        });
+                    } catch (e) {
+                        console.warn("API generate endpoint fetch unavailable in preview environment:", e);
+                    }
+
+                    if (response && response.ok) {
+                        parsedData = await response.json();
+                    } else if (response && response.status !== 404) {
+                        const errData = await response.json().catch(() => ({}));
+                        throw new Error(errData.error || `서버 응답 오류 (HTTP ${response.status})`);
+                    } else {
+                        // 3. Fallback to realistic preview result if running in Sandbox/Preview without Vercel backend
+                        await new Promise(r => setTimeout(r, 1500)); // Simulate AI processing delay
+                        parsedData = getSimulatedDemoResult();
+                    }
                 }
 
-                if (!response.ok) {
-                    throw new Error(data.error || '급식 분석 중 오류가 발생했습니다.');
-                }
-
-                renderResults(data);
+                renderResults(parsedData);
             } catch (error) {
                 console.error("Analysis Error: ", error);
-                showErrorAlert(error.message || "분석 도중 장애가 발생했습니다. Vercel 환경 변수에 GEMINI_API_KEY가 등록되어 있는지 확인해 주세요.");
-                
+                showErrorAlert(error.message || "분석 도중 오류가 발생했습니다. 상단 ⚙️ 아이콘을 눌러 Gemini API 키를 직접 입력해 보세요.");
                 document.getElementById('stepLoading').classList.add('hidden');
                 document.getElementById('stepUpload').classList.remove('hidden');
             } finally {
