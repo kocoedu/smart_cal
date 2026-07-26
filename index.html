@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍱 AI 급식 영양 분석 도우미</title>
+    <!-- Tailwind CSS for modern responsive utility design -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for beautiful Korean typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Inter:wght@300;400;500;600;700&family=Nanum+Gothic:wght@400;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Inter', 'Nanum Gothic', sans-serif;
+            background-color: #f7f9fc;
+        }
+        .accent-font {
+            font-family: 'Gaegu', cursive, sans-serif;
+        }
+        /* Custom scrollbar for desktop */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        /* Heartbeat and bounce animations */
+        @keyframes pulse-gentle {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+        }
+        .pulse-hover:hover {
+            animation: pulse-gentle 1s infinite ease-in-out;
+        }
+        /* Loading tray animation */
+        @keyframes bounce-slow {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+        .loading-tray {
+            animation: bounce-slow 2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-0 sm:p-4 bg-slate-50">
+
+    <!-- Main Outer Shell simulating a smartphone layout on desktop, full-width on mobile -->
+    <div class="w-full max-w-md min-h-screen sm:min-h-[850px] sm:max-h-[920px] bg-white sm:rounded-3xl sm:shadow-2xl overflow-y-auto flex flex-col relative border border-slate-100">
+        
+        <!-- Header Section with Pastel Gradient -->
+        <header class="bg-gradient-to-r from-emerald-100 to-teal-100 px-6 pt-8 pb-6 rounded-b-3xl shadow-sm flex flex-col items-center text-center relative shrink-0">
+            <div class="bg-white p-3 rounded-full shadow-md mb-3 flex items-center justify-center">
+                <span class="text-3xl">🍱</span>
+            </div>
+            <h1 class="text-2xl font-bold text-slate-800 tracking-tight accent-font">AI 급식 영양 분석 도우미</h1>
+            <p class="text-xs text-emerald-800 font-medium mt-1">"사진으로 오늘의 급식을 분석해보세요!"</p>
+        </header>
+
+        <!-- Scrollable Inner Body -->
+        <main class="flex-1 p-5 flex flex-col justify-start">
+            
+            <!-- Dynamic Alert Box (Initially hidden) -->
+            <div id="alertBox" class="hidden mb-4 p-4 bg-rose-50 border border-rose-200 text-rose-800 text-sm rounded-2xl flex items-start gap-3 shadow-sm">
+                <i class="fa-solid fa-circle-exclamation text-rose-500 text-lg mt-0.5"></i>
+                <div class="flex-1">
+                    <span id="alertMessage" class="font-medium">에러 메시지가 이곳에 표시됩니다.</span>
+                </div>
+                <button onclick="closeAlert()" class="text-rose-400 hover:text-rose-600">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- STEP 1: Upload / Input UI -->
+            <div id="stepUpload" class="flex flex-col gap-5 flex-1">
+                <!-- Instruction Card -->
+                <div class="bg-amber-50/50 border border-amber-100 rounded-2xl p-4 flex gap-3 items-center">
+                    <span class="text-2xl">💡</span>
+                    <p class="text-xs text-amber-900 leading-relaxed">
+                        급식 식판 전체 또는 개별 음식이 잘 보이도록 밝은 곳에서 찍어주세요! AI가 밥, 국, 반찬을 똑똑하게 분석합니다.
+                    </p>
+                </div>
+
+                <!-- Dropzone / Preview Area -->
+                <div id="dropzone" class="border-2 border-dashed border-emerald-200 hover:border-emerald-400 bg-emerald-50/10 rounded-2xl p-6 text-center flex flex-col items-center justify-center min-h-[220px] transition-all cursor-pointer relative group">
+                    <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="handleImageSelection(event)">
+                    <input type="file" id="albumInput" accept="image/*" class="hidden" onchange="handleImageSelection(event)">
+                    
+                    <!-- Empty State View -->
+                    <div id="emptyView" class="flex flex-col items-center justify-center gap-3">
+                        <div class="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 mb-1 group-hover:scale-110 transition-transform duration-300">
+                            <i class="fa-solid fa-utensils text-2xl"></i>
+                        </div>
+                        <p class="text-sm font-semibold text-slate-700">식판 사진을 추가하세요</p>
+                        <p class="text-xs text-slate-400">여기를 클릭하거나 파일을 여기에 끌어다 놓으세요</p>
+                    </div>
+
+                    <!-- Image Selected View (Hidden initially) -->
+                    <div id="previewView" class="hidden w-full h-full flex flex-col items-center justify-center">
+                        <div class="relative w-full max-h-[250px] rounded-xl overflow-hidden shadow-inner border border-slate-100 bg-slate-900">
+                            <img id="imagePreview" src="" alt="급식 사진 미리보기" class="w-full h-full object-contain max-h-[250px]">
+                            <button onclick="resetImage(event)" class="absolute top-2 right-2 bg-red-500/80 hover:bg-red-500 text-white rounded-full p-2 shadow-md hover:scale-105 transition-all text-xs" title="사진 삭제">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                        <p id="fileName" class="text-xs text-slate-500 mt-2 truncate w-full max-w-[200px]"></p>
+                    </div>
+                </div>
+
+                <!-- Camera and Album buttons grid -->
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="triggerCamera()" class="py-3 px-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl shadow-md flex items-center justify-center gap-2 font-medium transition-all text-sm active:scale-95">
+                        <i class="fa-solid fa-camera text-lg"></i>
+                        <span>사진 촬영</span>
+                    </button>
+                    <button onclick="triggerAlbum()" class="py-3 px-4 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded-2xl shadow-sm flex items-center justify-center gap-2 font-medium transition-all text-sm active:scale-95">
+                        <i class="fa-solid fa-image text-lg"></i>
+                        <span>앨범 선택</span>
+                    </button>
+                </div>
+
+                <!-- Big Action Analyze Button -->
+                <button id="btnAnalyze" disabled onclick="startAnalysis()" class="w-full py-4 bg-slate-300 text-slate-500 cursor-not-allowed rounded-2xl shadow-md flex items-center justify-center gap-2 font-bold transition-all text-base mt-auto">
+                    <i class="fa-solid fa-robot"></i>
+                    <span>🤖 AI 분석 시작</span>
+                </button>
+            </div>
+
+            <!-- STEP 2: Loading State View (Hidden initially) -->
+            <div id="stepLoading" class="hidden flex-1 flex flex-col items-center justify-center py-10 text-center gap-6">
+                <!-- Bouncing Lunchbox/Tray -->
+                <div class="loading-tray text-6xl mb-2">
+                    🍱
+                </div>
+                <!-- Interactive Loading Spinner -->
+                <div class="relative w-16 h-16">
+                    <div class="absolute inset-0 border-4 border-emerald-100 rounded-full"></div>
+                    <div class="absolute inset-0 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+                
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800 accent-font">AI가 급식을 정밀 분석 중...</h3>
+                    <p class="text-xs text-slate-400 mt-1">맛있는 반찬 이름과 칼로리를 계산하고 있어요.</p>
+                </div>
+
+                <!-- Educational Carousel in loader to keep user engaged -->
+                <div class="w-full max-w-xs bg-emerald-50 rounded-2xl p-4 border border-emerald-100 text-left mt-4 shadow-sm">
+                    <div class="flex items-center gap-2 mb-1.5 text-emerald-700 font-semibold text-xs">
+                        <i class="fa-solid fa-lightbulb"></i>
+                        <span>오늘의 영양 상식</span>
+                    </div>
+                    <p id="loadingTip" class="text-xs text-slate-600 leading-relaxed min-h-[40px] transition-all duration-300">
+                        칼슘은 뼈를 튼튼하게 해주어 성장기 어린이에게 필수적인 영양소입니다!
+                    </p>
+                </div>
+            </div>
+
+            <!-- STEP 3: Results View (Hidden initially) -->
+            <div id="stepResults" class="hidden flex-1 flex flex-col gap-6">
+                <!-- Header with Small Image Reference -->
+                <div class="flex items-center gap-4 bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                    <div class="w-16 h-16 rounded-xl overflow-hidden shrink-0 border border-slate-200">
+                        <img id="resultImageRef" src="" alt="분석된 식판" class="w-full h-full object-cover">
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-sm accent-font text-emerald-700">분석이 완벽히 완료되었습니다!</h4>
+                        <p class="text-xs text-slate-400">이미지 추정 기반 데이터 분석 리포트</p>
+                    </div>
+                </div>
+
+                <!-- Core Section: Total Calories -->
+                <div class="bg-gradient-to-br from-emerald-400 to-teal-500 text-white rounded-2xl p-5 shadow-md flex items-center justify-between">
+                    <div>
+                        <p class="text-xs opacity-90 font-medium">🍱 총 예상 칼로리</p>
+                        <p class="text-3xl font-extrabold mt-1 tracking-tight" id="resultTotalCalorie">-- kcal</p>
+                    </div>
+                    <div class="text-4xl opacity-40">
+                        <i class="fa-solid fa-fire"></i>
+                    </div>
+                </div>
+
+                <!-- Health Score Area (Arc Progress & Stars) -->
+                <div class="bg-amber-50/40 border border-amber-100 rounded-2xl p-4 flex flex-col items-center text-center gap-3">
+                    <p class="text-xs text-amber-900 font-bold tracking-wide uppercase">💪 건강 지수</p>
+                    
+                    <div class="flex flex-col items-center justify-center">
+                        <!-- Simulated circular chart -->
+                        <div class="relative w-24 h-24 flex items-center justify-center">
+                            <!-- SVG Gauge -->
+                            <svg class="absolute inset-0 w-full h-full -rotate-90">
+                                <circle cx="48" cy="48" r="40" stroke="#fef3c7" stroke-width="8" fill="transparent"/>
+                                <circle id="gaugeProgress" cx="48" cy="48" r="40" stroke="#f59e0b" stroke-width="8" stroke-dasharray="251.2" stroke-dashoffset="251.2" fill="transparent" class="transition-all duration-1000 ease-out" stroke-linecap="round"/>
+                            </svg>
+                            <!-- Score Display -->
+                            <span class="text-3xl font-extrabold text-amber-900 mt-0.5" id="healthScoreNumber">0/5</span>
+                        </div>
+                        
+                        <!-- Golden Star Ratings -->
+                        <div class="flex gap-1.5 mt-3 text-lg" id="starContainer">
+                            <!-- Stars inject dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analyzed Foods List Section -->
+                <div>
+                    <h3 class="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+                        <span class="text-emerald-500">🍚</span>
+                        <span>분석된 음식 상세</span>
+                    </h3>
+                    <div id="foodList" class="flex flex-col gap-3">
+                        <!-- Inject Food Cards dynamically -->
+                    </div>
+                </div>
+
+                <!-- Dietitian AI AI Advisor Chat Bubble -->
+                <div class="bg-teal-50 border border-teal-100 rounded-2xl p-4 relative flex flex-col gap-2 shadow-sm">
+                    <div class="flex items-center gap-2">
+                        <!-- Nutritionist Avatar -->
+                        <div class="w-8 h-8 rounded-full bg-teal-500 text-white flex items-center justify-center text-sm font-bold">
+                            👩‍🍳
+                        </div>
+                        <span class="text-xs font-bold text-teal-800">에디 영양사 선생님의 건강 한마디</span>
+                    </div>
+                    <!-- Bubble text content -->
+                    <div class="text-xs text-slate-600 leading-relaxed pl-1" id="aiComment">
+                        "영양소 분석 데이터 로딩 중..."
+                    </div>
+                </div>
+
+                <!-- Disclaimer footer -->
+                <p class="text-[10px] text-slate-400 leading-relaxed text-center px-4 bg-slate-50 py-2.5 rounded-xl border border-slate-100">
+                    ※ 본 결과는 AI가 이미지를 기반으로 추정한 정보이며 실제 영양정보와 차이가 있을 수 있습니다. 균형 잡힌 습관 형성을 돕기 위한 참고자료로 활용해 주세요.
+                </p>
+
+                <!-- Restart Analyzer Button -->
+                <button onclick="restartAnalyzer()" class="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl shadow-md flex items-center justify-center gap-2 font-bold transition-all text-base active:scale-95">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span>다른 급식 분석하기</span>
+                </button>
+            </div>
+
+        </main>
+
+        <!-- Footer Info -->
+        <footer class="py-4 text-center text-[10px] text-slate-400 bg-slate-50 border-t border-slate-100 shrink-0">
+            Powered by Google Gemini Vision &bull; Vercel Serverless Architecture
+        </footer>
+
+    </div>
+
+    <script>
+        // Core application state
+        let currentFile = null;
+        let base64ImageData = null;
+        let base64MimeType = null;
+        let apiInterval = null;
+
+        // Interactive Nutrition Tips list for loading screen
+        const NUTRITION_TIPS = [
+            "칼슘은 뼈를 튼튼하게 해주어 성장기 학생에게 아주 중요해요! (예: 우유, 치즈)",
+            "단백질은 우리 몸의 근육을 만드는 데 꼭 필요한 주성분이에요. (예: 닭고기, 생선, 두부)",
+            "비타민은 몸의 방어막 역할을 하여 면역력을 튼튼하게 높여줍니다! (예: 브로콜리, 과일)",
+            "풍부한 식이섬유는 소화를 돕고 장을 깨끗하고 건강하게 관리해 줘요! (예: 현미, 채소류)",
+            "탄수화물은 하루 활력을 담당하는 우리 몸의 가장 핵심적인 연료랍니다."
+        ];
+
+        // On document fully loaded
+        window.onload = function() {
+            setupDragAndDrop();
+        };
+
+        function setupDragAndDrop() {
+            const dropzone = document.getElementById('dropzone');
+            
+            // Drag enter / over highlight
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.classList.add('border-emerald-500', 'bg-emerald-50/30');
+                }, false);
+            });
+
+            // Drag leave highlight reset
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.classList.remove('border-emerald-500', 'bg-emerald-50/30');
+                }, false);
+            });
+
+            // File dropped
+            dropzone.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files && files.length > 0) {
+                    processUploadedFile(files[0]);
+                }
+            });
+
+            // Dropzone click trigger (if target is not delete button)
+            dropzone.addEventListener('click', (e) => {
+                if (currentFile) return; // Ignore if image already previewed
+                triggerAlbum();
+            });
+        }
+
+        // Trigger file element inputs
+        function triggerCamera() {
+            document.getElementById('cameraInput').click();
+        }
+
+        function triggerAlbum() {
+            document.getElementById('albumInput').click();
+        }
+
+        function handleImageSelection(event) {
+            const file = event.target.files[0];
+            if (file) {
+                processUploadedFile(file);
+            }
+        }
+
+        function processUploadedFile(file) {
+            if (!file.type.match('image.*')) {
+                showErrorAlert("이미지 파일만 선택할 수 있습니다. (JPG, PNG 등)");
+                return;
+            }
+            
+            currentFile = file;
+            base64MimeType = file.type;
+            
+            // Display filename
+            document.getElementById('fileName').innerText = file.name;
+
+            // Generate image preview and base64 string
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const previewImg = document.getElementById('imagePreview');
+                const resultRefImg = document.getElementById('resultImageRef');
+                
+                previewImg.src = e.target.result;
+                resultRefImg.src = e.target.result;
+
+                // Strip the mime type declaration prefix to extract pure base64
+                base64ImageData = e.target.result.split(',')[1];
+
+                // Change visual states of uploading card
+                document.getElementById('emptyView').classList.add('hidden');
+                document.getElementById('previewView').classList.remove('hidden');
+
+                // Enable analysis button
+                const btn = document.getElementById('btnAnalyze');
+                btn.removeAttribute('disabled');
+                btn.className = "w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl shadow-lg flex items-center justify-center gap-2 font-bold transition-all text-base hover:scale-[1.02] active:scale-95 cursor-pointer";
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Reset current loaded image
+        function resetImage(event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            currentFile = null;
+            base64ImageData = null;
+            base64MimeType = null;
+
+            // Reset UI states
+            document.getElementById('imagePreview').src = "";
+            document.getElementById('emptyView').classList.remove('hidden');
+            document.getElementById('previewView').classList.add('hidden');
+            document.getElementById('fileName').innerText = "";
+
+            // Disable Analysis button
+            const btn = document.getElementById('btnAnalyze');
+            btn.setAttribute('disabled', 'true');
+            btn.className = "w-full py-4 bg-slate-300 text-slate-500 cursor-not-allowed rounded-2xl shadow-md flex items-center justify-center gap-2 font-bold transition-all text-base mt-auto";
+            
+            // Clear inputs
+            document.getElementById('cameraInput').value = "";
+            document.getElementById('albumInput').value = "";
+        }
+
+        // Custom Alert Handlers
+        function showErrorAlert(message) {
+            const alertBox = document.getElementById('alertBox');
+            const alertMessage = document.getElementById('alertMessage');
+            alertMessage.innerText = message;
+            alertBox.classList.remove('hidden');
+            // Scroll container to top to show alert
+            document.querySelector('main').scrollTop = 0;
+        }
+
+        function closeAlert() {
+            document.getElementById('alertBox').classList.add('hidden');
+        }
+
+        // Loading animation screen dynamics
+        function startLoadingCarousel() {
+            const tipEl = document.getElementById('loadingTip');
+            let index = 0;
+            apiInterval = setInterval(() => {
+                index = (index + 1) % NUTRITION_TIPS.length;
+                tipEl.classList.add('opacity-0');
+                setTimeout(() => {
+                    tipEl.innerText = NUTRITION_TIPS[index];
+                    tipEl.classList.remove('opacity-0');
+                }, 300);
+            }, 3000);
+        }
+
+        function stopLoadingCarousel() {
+            if (apiInterval) {
+                clearInterval(apiInterval);
+                apiInterval = null;
+            }
+        }
+
+        // Core start analysis sequence targeting Vercel /api/generate serverless function
+        async function startAnalysis() {
+            if (!base64ImageData) {
+                showErrorAlert("분석할 급식 사진을 업로드해 주세요.");
+                return;
+            }
+
+            // Close outstanding alert message
+            closeAlert();
+
+            // Toggle step visibility
+            document.getElementById('stepUpload').classList.add('hidden');
+            document.getElementById('stepLoading').classList.remove('hidden');
+            startLoadingCarousel();
+
+            try {
+                // Call Vercel serverless endpoint
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        base64ImageData: base64ImageData,
+                        mimeType: base64MimeType
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || '급식 분석 중 오류가 발생했습니다.');
+                }
+
+                renderResults(data);
+            } catch (error) {
+                console.error("Analysis Error: ", error);
+                showErrorAlert(error.message || "분석 도중 장애가 발생했습니다. 네트워크 환경 또는 Vercel GEMINI_API_KEY 설정을 확인해 주세요.");
+                
+                // Rollback step state
+                document.getElementById('stepLoading').classList.add('hidden');
+                document.getElementById('stepUpload').classList.remove('hidden');
+            } finally {
+                stopLoadingCarousel();
+            }
+        }
+
+        function renderResults(data) {
+            // Validate data structure
+            if (!data) return;
+
+            // Display overall calories
+            document.getElementById('resultTotalCalorie').innerText = `${data.total_calorie || '--'} kcal`;
+
+            // Display circular health score and animated stars
+            const rawScore = parseInt(data.health_score) || 3;
+            const healthScore = Math.min(Math.max(rawScore, 1), 5); // Clamped between 1 and 5
+            
+            document.getElementById('healthScoreNumber').innerText = `${healthScore}/5`;
+            
+            // Calculate and set dashoffset for SVG circular gauge
+            const circleCircumference = 2 * Math.PI * 40; // ~251.2
+            const offset = circleCircumference - (healthScore / 5) * circleCircumference;
+            document.getElementById('gaugeProgress').style.strokeDashoffset = offset;
+
+            // Star Rating rendering (e.g., ⭐⭐⭐⭐☆)
+            const starContainer = document.getElementById('starContainer');
+            starContainer.innerHTML = "";
+            for (let i = 1; i <= 5; i++) {
+                const star = document.createElement('span');
+                if (i <= healthScore) {
+                    star.className = "text-amber-400 transform scale-110 animate-bounce duration-300";
+                    star.innerHTML = `<i class="fa-solid fa-star"></i>`;
+                } else {
+                    star.className = "text-slate-200";
+                    star.innerHTML = `<i class="fa-regular fa-star"></i>`;
+                }
+                starContainer.appendChild(star);
+            }
+
+            // Food Cards Rendering
+            const foodListContainer = document.getElementById('foodList');
+            foodListContainer.innerHTML = "";
+
+            if (data.foods && data.foods.length > 0) {
+                data.foods.forEach((food) => {
+                    const card = document.createElement('div');
+                    card.className = "bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-2";
+                    
+                    // Header info of food item
+                    const headRow = document.createElement('div');
+                    headRow.className = "flex justify-between items-center";
+                    headRow.innerHTML = `
+                        <span class="font-bold text-slate-800 text-sm">${food.name || '미확인 메뉴'}</span>
+                        <span class="text-xs font-semibold px-2.5 py-1 bg-rose-50 text-rose-600 rounded-full">${food.estimated_calorie || '--'} kcal</span>
+                    `;
+                    card.appendChild(headRow);
+
+                    // Nutrient badges row with progress visuals
+                    const nutritionGrid = document.createElement('div');
+                    nutritionGrid.className = "grid grid-cols-3 gap-2 mt-1 text-[11px] text-slate-500 text-center";
+                    
+                    // Simple percent logic representation
+                    const carbVal = parseInt(food.carbohydrate) || 0;
+                    const protVal = parseInt(food.protein) || 0;
+                    const fatVal = parseInt(food.fat) || 0;
+
+                    nutritionGrid.innerHTML = `
+                        <div class="bg-amber-50/50 p-1.5 rounded-lg border border-amber-100/30">
+                            <span class="block text-slate-400 font-medium mb-0.5">탄수화물</span>
+                            <span class="font-bold text-amber-700">${carbVal}g</span>
+                        </div>
+                        <div class="bg-indigo-50/50 p-1.5 rounded-lg border border-indigo-100/30">
+                            <span class="block text-slate-400 font-medium mb-0.5">단백질</span>
+                            <span class="font-bold text-indigo-700">${protVal}g</span>
+                        </div>
+                        <div class="bg-emerald-50/50 p-1.5 rounded-lg border border-emerald-100/30">
+                            <span class="block text-slate-400 font-medium mb-0.5">지방</span>
+                            <span class="font-bold text-emerald-700">${fatVal}g</span>
+                        </div>
+                    `;
+                    card.appendChild(nutritionGrid);
+                    foodListContainer.appendChild(card);
+                });
+            } else {
+                foodListContainer.innerHTML = `
+                    <p class="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-xl">개별 음식 영양 상세 정보를 찾을 수 없습니다.</p>
+                `;
+            }
+
+            // AI Comment
+            document.getElementById('aiComment').innerText = data.comment || "건강하고 규칙적인 식단이 중요합니다. 골고루 섭취해보세요!";
+
+            // Display Steps Toggle
+            document.getElementById('stepLoading').classList.add('hidden');
+            document.getElementById('stepResults').classList.remove('hidden');
+        }
+
+        function restartAnalyzer() {
+            // Clear current image selection
+            resetImage();
+
+            // Toggle step visibility back
+            document.getElementById('stepResults').classList.add('hidden');
+            document.getElementById('stepUpload').classList.remove('hidden');
+
+            // Scroll container to top
+            document.querySelector('main').scrollTop = 0;
+        }
+    </script>
+</body>
+</html>
